@@ -82,7 +82,7 @@ func (mesh *Mesh) calculateProfile(radius float64, resolution int) {
 	// 4. tar ut dom punkter som ligger inom [x - radius,x + radius]
 	// 5. beräkna höjd på cirkel som krockar med värdet
 	// 6. ta ut index på punkten (som cirkeln krockar med)
-	// 7. om det finns ett stötte värde, gäller detta
+	// 7. om det finns ett större värde, gäller detta
 
 	// 0
 	mesh.calculateMeshProperties()
@@ -115,7 +115,7 @@ func (mesh *Mesh) calculateProfile(radius float64, resolution int) {
 		if index[i] != -1 {
 			no_index++
 		}
-	}
+	}	
 	mesh.Profile = make([][2]float64, no_index)
 	pindex := int(0)
 	for i := 0; i < len(index); i++ {
