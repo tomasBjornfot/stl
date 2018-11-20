@@ -15,7 +15,7 @@ import (
 type Mesh struct {
 	Triangles [][9]float64
 	Normals   [][3]float64
-	Profile   [][2]float64
+    Profile   [][2]float64
 	No_tri    int
 	X_min     float64
 	Y_min     float64
@@ -24,7 +24,13 @@ type Mesh struct {
 	Y_max     float64
 	Z_max     float64
 }
-
+type CrossSection struct {
+	X       [][1000]float64
+	Y       [][1000]float64
+	Z       [][1000]float64
+	No_rows int
+	No_cols [1000]int
+}
 /*
  * PRIVATE FUNCTIONS/METHODS
  */
@@ -32,7 +38,7 @@ func (mesh *Mesh) calculateMeshProperties() {
 	// tar reda på max och min i varje dimension
 	mesh.X_min, mesh.Y_min, mesh.Z_min = 100000.0, 100000.0, 100000.0
 	mesh.X_max, mesh.Y_max, mesh.Z_max = -100000.0, -100000.0, -100000.0
-	points := TrianglesToPoints(*mesh)
+	points := trianglesToPoints(*mesh)
 
 	for i := 0; i < 3*mesh.No_tri; i++ {
 		// min x
@@ -65,7 +71,7 @@ func (mesh *Mesh) calculateProfile(radius float64, resolution int) {
 	// räknar ut Profilen på brädan i xy planet
 
 	// plockar ut punkterna från trianglarna
-	points := TrianglesToPoints(*mesh)
+	points := trianglesToPoints(*mesh)
 
 	x := make([]float64, len(points))
 	y := make([]float64, len(points))
@@ -161,7 +167,7 @@ func linspace(min float64, max float64, no_segments int) []float64 {
 	}
 	return numbers
 }
-func TrianglesToPoints(mesh Mesh) [][3]float64 {
+func trianglesToPoints(mesh Mesh) [][3]float64 {
 	// tar ut trianglarna från mesh och gör en x,3 matris av punkterna
 	points := make([][3]float64, 3*mesh.No_tri)
 	// plockar ut punkterna från trianglarna
@@ -180,7 +186,64 @@ func TrianglesToPoints(mesh Mesh) [][3]float64 {
 	}
 	return points
 }
-
+func getMinValue(array []float64) int {
+	min_value := float64(1000000)
+	index := int(-1)
+	for i := 0; i < len(array); i++ {
+		if array[i] < min_value {
+			min_value = array[i]
+			index = i
+		}
+	}
+	return index
+}
+func getMaxValue(array []float64) int {
+	max_value := float64(-1000000)
+	index := int(-1)
+	for i := 0; i < len(array); i++ {
+		if array[i] > max_value {
+			max_value = array[i]
+			index = i
+		}
+	}
+	return index
+}
+func getNearestNeighbours(x float64, x_array []float64) []int {
+	lower_diff := float64(100000)
+	upper_diff := float64(100000)
+	lower_index := int(-1)
+	upper_index := int(-1)
+	for i := 0; i < len(x_array); i++ {
+		// prospekt för nedre värdet
+		if x_array[i] < x {
+			lower_diff_new := x - x_array[i]
+			if lower_diff_new < lower_diff {
+				lower_diff = lower_diff_new
+				lower_index = i
+			}
+		}
+		// prospekt för övre värdet
+		if x_array[i] >= x {
+			upper_diff_new := x_array[i] - x
+			if upper_diff_new < upper_diff {
+				upper_diff = upper_diff_new
+				upper_index = i
+			}
+		}
+	}
+	index := make([]int, 2)
+	index[0] = lower_index
+	index[1] = upper_index
+	return index
+}
+func twoPointsToLine(x0 float64, x1 float64, y0 float64, y1 float64) (float64, float64) {
+	k := (y1 - y0) / (x1 - x0)
+	m := y0 - k*x0
+	return k, m
+}
+func yValueAt(x float64, k float64, m float64) float64 {
+	return k*x + m
+}
 /*
  * PUBLIC FUNCTIONS/METHODS
  */
@@ -443,7 +506,151 @@ func (mesh *Mesh) Split() (*Mesh, *Mesh) {
 	bottom.calculateProfile(50.0, 100)
 	return deck, bottom
 }
+func (mesh *Mesh) CalculateCS_Y_Values(max_distance float64, resolution float64) []float64 {
+	// vad gör denna. Dåligt namn på funktionen?
+	// hämtar profilen
+	px := make([]float64, len(mesh.Profile))
+	py := make([]float64, len(mesh.Profile))
+	for i := 0; i < len(mesh.Profile); i++ {
+		px[i] = mesh.Profile[i][0]
+		py[i] = mesh.Profile[i][1]
+	}
+	// skapar "cross sections" cs_x och cs_y
+	cs_x := make([]float64, 100000)
+	cs_y := make([]float64, 100000)
+	start_index := getMinValue(px)
+	stop_index := getMaxValue(px)
+	cs_index := int(0)
+	nindex := make([]int, 2)
+	// ger ett startvärde (minsta värdet i profilen)
+	cs_x[0] = px[start_index]
+	cs_y[0] = py[start_index]
+	cs_x_new := cs_x[0]
+	cs_y_new := float64(0)
+	k := float64(0)
+	m := float64(0)
+	max_distance2 := max_distance * max_distance
+	dist2 := float64(0)
 
+	// ** iteration börjar **
+	for i := 0; i < 100000; i++ {
+		// flyttar sig frammåt med en resolution
+		cs_x_new += resolution
+		// kollar så cs_x_new inte är större än max värdet
+		if cs_x_new == px[stop_index] {
+			break
+		}
+		if cs_x_new > px[stop_index] {
+			cs_index++
+			cs_x[cs_index] = px[stop_index]
+			break
+		}
+		// hittar närmsta grannar
+		nindex = getNearestNeighbours(cs_x_new, px)
+		// räknar ut y värdet
+		k, m = twoPointsToLine(px[nindex[0]], px[nindex[1]], py[nindex[0]], py[nindex[1]])
+		cs_y_new = yValueAt(cs_x_new, k, m)
+		// räknar ut avståndet mellan cs punkterna
+		dist2 = (cs_x_new-cs_x[cs_index])*(cs_x_new-cs_x[cs_index]) + (cs_y_new-cs_y[cs_index])*(cs_y_new-cs_y[cs_index])
+		// kollar om dom nya punkterna har passerat max_distance
+		if dist2 > max_distance2 {
+			cs_x_new -= resolution
+			cs_index++
+			cs_x[cs_index] = cs_x_new
+			cs_y[cs_index] = cs_y_new
+		}
+	}
+	cs_x_final := make([]float64, cs_index+1)
+	for i := 0; i < cs_index+1; i++ {
+		cs_x_final[i] = cs_x[i]
+	}
+	return cs_x_final
+}
+func (csMesh *CrossSection) MeshToCs(cs []float64, mesh *Mesh) {
+	// return variabler
+	x := make([][1000]float64, len(cs))
+	y := make([][1000]float64, len(cs))
+	z := make([][1000]float64, len(cs))
+	var no_cols [1000]int
+
+	// variabler som används endast i funktionen
+	var side [3]int
+	var v0 [3]float64
+	var p0 []float64
+	var tri [9]float64
+	var t float64
+	var index, side_sum int = 0, 0
+
+	// itererar över alla tvärsnitt
+	for i := 0; i < len(cs); i++ {
+		index = 0
+		// itererar över all trianglar
+		for j := 0; j < mesh.No_tri; j++ {
+			if mesh.Triangles[j][1]-cs[i] > 0 {
+				side[0] = 1
+			} else {
+				side[0] = -1
+			}
+			if mesh.Triangles[j][4]-cs[i] > 0 {
+				side[1] = 1
+			} else {
+				side[1] = -1
+			}
+			if mesh.Triangles[j][7]-cs[i] > 0 {
+				side[2] = 1
+			} else {
+				side[2] = -1
+			}
+			// om y korsar triangeln
+			side_sum = side[0] + side[1] + side[2]
+			if side_sum == 1 || side_sum == -1 {
+				tri = mesh.Triangles[j]
+				if side[0]+side[1] == 0 {
+					v0[0] = tri[3] - tri[0]
+					v0[1] = tri[4] - tri[1]
+					v0[2] = tri[5] - tri[2]
+					p0 = tri[0:3]
+					t = (cs[i] - p0[1]) / v0[1]
+					x[i][index] = v0[0]*t + p0[0]
+					z[i][index] = v0[2]*t + p0[2]
+					index++
+				}
+				if side[1]+side[2] == 0 {
+					v0[0] = tri[6] - tri[3]
+					v0[1] = tri[7] - tri[4]
+					v0[2] = tri[8] - tri[5]
+					p0 = tri[3:6]
+					t = (cs[i] - p0[1]) / v0[1]
+					x[i][index] = v0[0]*t + p0[0]
+					z[i][index] = v0[2]*t + p0[2]
+					index++
+				}
+				if side[0]+side[2] == 0 {
+					v0[0] = tri[6] - tri[0]
+					v0[1] = tri[7] - tri[1]
+					v0[2] = tri[8] - tri[2]
+					p0 = tri[0:3]
+					t = (cs[i] - p0[1]) / v0[1]
+					x[i][index] = v0[0]*t + p0[0]
+					z[i][index] = v0[2]*t + p0[2]
+					index++
+				}
+			}
+		}
+		no_cols[i] = index
+	}
+	csMesh.No_cols = no_cols
+	csMesh.No_rows = len(cs)
+	csMesh.X = x
+	csMesh.Z = z
+
+	for i := 0; i < len(cs); i++ {
+		for j := 0; j < 1000; j++ {
+			y[i][j] = cs[i]
+		}
+	}
+	csMesh.Y = y
+}
 /*
  * EXTRAS
  */
