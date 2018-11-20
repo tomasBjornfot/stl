@@ -356,7 +356,7 @@ func (mesh *Mesh) MoveToCenter() {
 	vector[0] = -x_sum / (3 * float64(mesh.No_tri))
 	vector[1] = -y_sum / (3 * float64(mesh.No_tri))
 	vector[2] = -z_sum / (3 * float64(mesh.No_tri))
-	fmt.Println("translation vector: ", vector)
+	fmt.Println("MovetoCenter, translation vector: ", vector)
 	mesh.Translate(vector)
 }
 func (mesh *Mesh) MoveToCenter2() {
@@ -393,7 +393,7 @@ func (mesh *Mesh) MoveToCenter2() {
 	vector[0] = -(X_max + X_min) / 2.0
 	vector[1] = -(Y_max + Y_min) / 2.0
 	vector[2] = -(Z_max + Z_min) / 2.0
-	fmt.Println("translation vector: ", vector)
+	fmt.Println("MovetoCenter2, translation vector: ", vector)
 	mesh.Translate(vector)
 }
 func (mesh *Mesh) Translate(vector [3]float64) {
@@ -507,7 +507,7 @@ func (mesh *Mesh) Split() (*Mesh, *Mesh) {
 	return deck, bottom
 }
 func (mesh *Mesh) CalculateCS_Y_Values(max_distance float64, resolution float64) []float64 {
-	// vad gör denna. Dåligt namn på funktionen?
+	// Räknar ut y värden som ska navändas som cross sections
 	// hämtar profilen
 	px := make([]float64, len(mesh.Profile))
 	py := make([]float64, len(mesh.Profile))
@@ -566,7 +566,7 @@ func (mesh *Mesh) CalculateCS_Y_Values(max_distance float64, resolution float64)
 	}
 	return cs_x_final
 }
-func (csMesh *CrossSection) MeshToCs(cs []float64, mesh *Mesh) {
+func (crossSection *CrossSection) MeshToCs(cs []float64, mesh *Mesh) {
 	// return variabler
 	x := make([][1000]float64, len(cs))
 	y := make([][1000]float64, len(cs))
@@ -639,17 +639,23 @@ func (csMesh *CrossSection) MeshToCs(cs []float64, mesh *Mesh) {
 		}
 		no_cols[i] = index
 	}
-	csMesh.No_cols = no_cols
-	csMesh.No_rows = len(cs)
-	csMesh.X = x
-	csMesh.Z = z
+	crossSection.No_cols = no_cols
+	crossSection.No_rows = len(cs)
+	crossSection.X = x
+	crossSection.Z = z
 
 	for i := 0; i < len(cs); i++ {
 		for j := 0; j < 1000; j++ {
 			y[i][j] = cs[i]
 		}
 	}
-	csMesh.Y = y
+	crossSection.Y = y
+}
+func (mesh *Mesh) CalculateCrossSections(y_res float64, m_res float64) *CrossSection {
+	cs := mesh.CalculateCS_Y_Values(y_res, m_res)
+	cs_mesh := new(CrossSection)
+    cs_mesh.MeshToCs(cs, mesh)
+    return cs_mesh
 }
 /*
  * EXTRAS
