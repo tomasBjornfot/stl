@@ -713,6 +713,23 @@ func (mesh *Mesh) WriteProfileToFile(path string) {
 		file.WriteString(s)
 	}
 }
+func (cs *CrossSection) WriteCrossSectionToFile(path string , cs_index int) {
+	write_float := func(value float64) string {
+		return strconv.FormatFloat(value, 'f', 2, 64)
+	}
+	
+	file, err := os.Create(path)
+	defer file.Close()
+	if err != nil {
+		fmt.Println("WriteCrossSectionToFile: Something went wrong!!!")
+	}
+	for i := range(cs.X[cs_index][:cs.No_cols[cs_index]]) {
+		s_x := write_float(cs.X[cs_index][i])
+		s_z := write_float(cs.Z[cs_index][i])
+		s := s_x + " " + s_z + "\n"
+		file.WriteString(s)
+	}
+}
 func (mesh *Mesh) WriteMeshProperties() {
 	// skriver alla mesh properties på terminal
 	mesh.calculateMeshProperties()
