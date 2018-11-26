@@ -92,3 +92,6 @@ plt.grid()
 plt.axis('equal')
 plt.show()
 
+# save to file
+np.savetxt('c:\\tmp\\result_python.txt', p, fmt='%.2f')
+

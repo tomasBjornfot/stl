@@ -106,6 +106,7 @@ func print_struct(points *Points2d) {
 		fmt.Print("\n")
 	}
 }
+
 func main() {
 	
 	// populating the struct
@@ -114,7 +115,7 @@ func main() {
 	
 	// calculates the new points with a fixed distance
 	space := 1.0
-	r2_left := 0
+	d2_left := 0.0
 	p := make([][2]float64, 1000)
 	no_p := 0
 	line_index := 0
@@ -125,8 +126,8 @@ func main() {
 	for i:=1; i<30; i++ {
 		space2 := space*space
 		// checks if the next point should be on the "first" line
-		r2_left = line_square_length(p[no_p], cs.points[2*line_index+1])
-		if space2 < r2_left {
+		d2_left = line_square_length(p[no_p], cs.points[2*line_index+1])
+		if space2 < d2_left {
 			new_point := calc_next_point(p[no_p], space2, cs.k[line_index], cs.m[line_index])
 			p[i] = new_point
 			no_p++
@@ -134,16 +135,16 @@ func main() {
 		}
 		// checks if the next point should be on the "next" line
 		for {
-			space2 = space2 - r2_left
-			line_index = line_index + 1
-			r2_left = cs.d2[line_index]
-			if space2 < r2_left {
-				new_point = calc_next_point(cs.points[2*line_index], space2, cs.k[line_index], cs.m[line_index])
+			space2 -= d2_left
+			line_index++
+			d2_left = cs.d2[line_index]
+			if space2 < d2_left {
+				new_point := calc_next_point(cs.points[2*line_index], space2, cs.k[line_index], cs.m[line_index])
 				p[i] = new_point
 				no_p++
 				break
 			}
 		}
 	}
-	write2dpoints("c:\\tmp\\result.txt", new_points[:no_new_points])
+	write2dpoints("c:\\tmp\\result.txt", p[:no_p])
 }
