@@ -7,6 +7,8 @@ import pdb
 # The script assumees that the cross-section points are sorted written 
 # as line-pairs (p0 and p1). 
 
+# secure by sorting each line segment
+
 # get line properties
 def line_sqr_length(p0, p1):
 	dx = p0[0] - p1[0]
