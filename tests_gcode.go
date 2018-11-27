@@ -58,6 +58,19 @@ func write2dpoints(path string, points [][2]float64) {
 	ioutil.WriteFile(path, bytes, 0666)
 }
 
+func load_struct_from_file(path string) *Points2d {
+	x := new(Points2d)
+	x.points = read2dpoints(path)
+	x.d2 = make([]float64, len(x.points)/2)
+	x.k = make([]float64, len(x.points)/2)
+	x.m = make([]float64, len(x.points)/2)
+	for i := range x.d2 {
+		x.d2[i] = line_square_length(x.points[2*i], x.points[2*i+1])
+		x.k[i] = line_k(x.points[2*i], x.points[2*i+1])
+		x.m[i] = line_m(x.points[2*i], x.points[2*i+1])
+	}
+	return x
+}
 // --- printing (for testing) ---
 func print_struct(points *Points2d) {
 	for i := range points.d2 {
@@ -89,34 +102,6 @@ func line_m(p0 [2]float64, p1 [2]float64) float64 {
 	k := line_k(p0, p1)
 	return p0[1] - k*p0[0]
 }
-func load_struct_from_file(path string) *Points2d {
-	x := new(Points2d)
-	x.points = read2dpoints(path)
-	x.d2 = make([]float64, len(x.points)/2)
-	x.k = make([]float64, len(x.points)/2)
-	x.m = make([]float64, len(x.points)/2)
-	for i := range x.d2 {
-		x.d2[i] = line_square_length(x.points[2*i], x.points[2*i+1])
-		x.k[i] = line_k(x.points[2*i], x.points[2*i+1])
-		x.m[i] = line_m(x.points[2*i], x.points[2*i+1])
-	}
-	return x
-}
-/*
-func load_struct(points [][2]float64) *Points2d {
-	x := new(Points2d)
-	x.points = points
-	x.d2 = make([]float64, len(x.points)/2)
-	x.k = make([]float64, len(x.points)/2)
-	x.m = make([]float64, len(x.points)/2)
-	for i := range x.d2 {
-		x.d2[i] = line_square_length(x.points[2*i], x.points[2*i+1])
-		x.k[i] = line_k(x.points[2*i], x.points[2*i+1])
-		x.m[i] = line_m(x.points[2*i], x.points[2*i+1])
-	}
-	return x
-}
-*/
 
 func load_struct(x []float64, y []float64) *Points2d {
 	p2d := new(Points2d)
@@ -191,18 +176,15 @@ func even_spaced_cs(cs *Points2d, space float64) [][2]float64 {
 }
 
 func main() {
-	
-	// populating the struct
-	//cs := load_struct_from_file("c:\\Go\\data\\cs_deck.txt")
+	// reading a cross-section from a mesh
+	// x and z is csMesh.x[row] and csMesh.z[row]
 	x := read_matrix_row("c:\\Go\\data\\_deck_x", 1)
 	z := read_matrix_row("c:\\Go\\data\\_deck_z", 1)
+	// generates a Points2d struct 
 	cs := load_struct(x, z)
-	
-	fmt.Println(len(x))
-	fmt.Println(len(z))
-	//print_struct(cs)
-	
+	// generates an even spaced cross-section
 	p := even_spaced_cs(cs, 1.0)
+	
 	write2dpoints("c:\\Go\\data\\cs_row.txt", cs.points)
 	write2dpoints("c:\\Go\\data\\result.txt", p)
 }
