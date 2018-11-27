@@ -7,13 +7,15 @@ import (
 	"strconv"
 	"math"
 )
+
+// --- useful struct ---
 type Points2d struct {
 	points [][2]float64
 	k	[]float64
 	m	[]float64
 	d2	[]float64
 }
-// read/write
+// --- read/write (for testing) ---
 func read2dpoints(path string) [][2]float64 {
 	bytes, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -28,8 +30,23 @@ func read2dpoints(path string) [][2]float64 {
 	}
 	return data
 }
+
+func read_matrix_row(path string, row int) []float64 {
+	bytes, err := ioutil.ReadFile(path)
+	if err != nil {
+		fmt.Println("Somthing whent wrong reading the file")
+	}
+	lines := strings.Split(string(bytes), "\n")
+	line := strings.Split(lines[row], " ")
+	data := make([]float64, len(line))
+	for i, val := range line {
+		data[i], _ = strconv.ParseFloat(val, 64)
+	}
+	return data
+}
+
 func write2dpoints(path string, points [][2]float64) {
-	data_string := " "
+	data_string := ""
 	for _, val := range points {
 		data_string += fmt.Sprintf("%.2f", val[0])
 		data_string += " "
@@ -41,8 +58,23 @@ func write2dpoints(path string, points [][2]float64) {
 	ioutil.WriteFile(path, bytes, 0666)
 }
 
+// --- printing (for testing) ---
+func print_struct(points *Points2d) {
+	for i := range points.d2 {
+		fmt.Print("point: ")
+		fmt.Printf("%.2f", points.points[2*i])
+		fmt.Printf("%.2f", points.points[2*i+1])
+		fmt.Print(" d: ")
+		fmt.Printf("%.2f", math.Sqrt(points.d2[i]))
+		fmt.Print(" k: ")
+		fmt.Printf("%.2f", points.k[i])
+		fmt.Print(" m: ")
+		fmt.Printf("%.2f", points.m[i])
+		fmt.Print("\n")
+	}
+}
 
-// for the struct
+// --- 2D line calculations ---
 func line_square_length(p0 [2]float64, p1 [2]float64) float64 {
 	dx := p0[0] - p1[0]
 	dy := p0[1] - p1[1]
@@ -70,6 +102,7 @@ func load_struct_from_file(path string) *Points2d {
 	}
 	return x
 }
+/*
 func load_struct(points [][2]float64) *Points2d {
 	x := new(Points2d)
 	x.points = points
@@ -83,38 +116,39 @@ func load_struct(points [][2]float64) *Points2d {
 	}
 	return x
 }
+*/
 
-func calc_next_point(p_left [2]float64, r2 float64, k float64, m float64) [2]float64 {
-	dx := math.Sqrt(r2/(1+k*k))
-	p_new := [2]float64 {0.0, 0.0}
-	p_new[0] = p_left[0] + dx
-	p_new[1] = k*p_new[0] + m
-	return p_new
-}
-
-func print_struct(points *Points2d) {
-	for i := range points.d2 {
-		fmt.Print("point: ")
-		fmt.Printf("%.2f", points.points[2*i])
-		fmt.Printf("%.2f", points.points[2*i+1])
-		fmt.Print(" d: ")
-		fmt.Printf("%.2f", math.Sqrt(points.d2[i]))
-		fmt.Print(" k: ")
-		fmt.Printf("%.2f", points.k[i])
-		fmt.Print(" m: ")
-		fmt.Printf("%.2f", points.m[i])
-		fmt.Print("\n")
+func load_struct(x []float64, y []float64) *Points2d {
+	p2d := new(Points2d)
+	p := make([][2]float64, len(x))
+	for i := range x {
+		p[i][0] = x[i]
+		p[i][1] = y[i]
 	}
+	p2d.points = p
+	p2d.d2 = make([]float64, len(p2d.points)/2)
+	p2d.k = make([]float64, len(p2d.points)/2)
+	p2d.m = make([]float64, len(p2d.points)/2)
+	for i := range p2d.d2 {
+		p2d.d2[i] = line_square_length(p2d.points[2*i], p2d.points[2*i+1])
+		p2d.k[i] = line_k(p2d.points[2*i], p2d.points[2*i+1])
+		p2d.m[i] = line_m(p2d.points[2*i], p2d.points[2*i+1])
+	}
+	return p2d
 }
 
-func main() {
+// function to make the even spaced line
+func even_spaced_cs(cs *Points2d, space float64) [][2]float64 {
 	
-	// populating the struct
-	cs := load_struct_from_file("c:\\tmp\\cs_deck.txt")
-	//print_struct(cs)
+	calc_next_point := func(p_left [2]float64, r2 float64, k float64, m float64) [2]float64 {
+		dx := math.Sqrt(r2/(1+k*k))
+		p_new := [2]float64 {0.0, 0.0}
+		p_new[0] = p_left[0] + dx
+		p_new[1] = k*p_new[0] + m
+		return p_new
+	}
 	
 	// calculates the new points with a fixed distance
-	space := 1.0
 	d2_left := 0.0
 	p := make([][2]float64, 1000)
 	no_p := 0
@@ -123,7 +157,14 @@ func main() {
 	// setting the first value to the same as the first value in cs
 	p[0] = cs.points[0] 
 	
-	for i:=1; i<30; i++ {
+	for i:=1; i<1000; i++ {
+		// checks if new point pass the center line (x=0)
+		if p[no_p][0] > 0 {
+			// move the point to the center line
+			p[no_p][0] = 0
+			p[no_p][1] = cs.k[line_index]*p[no_p][0] + cs.m[line_index]
+			break
+		}
 		space2 := space*space
 		// checks if the next point should be on the "first" line
 		d2_left = line_square_length(p[no_p], cs.points[2*line_index+1])
@@ -135,7 +176,7 @@ func main() {
 		}
 		// checks if the next point should be on the "next" line
 		for {
-			space2 -= d2_left
+			space2 = (math.Sqrt(space2) - math.Sqrt(d2_left))*(math.Sqrt(space2) - math.Sqrt(d2_left))
 			line_index++
 			d2_left = cs.d2[line_index]
 			if space2 < d2_left {
@@ -146,5 +187,22 @@ func main() {
 			}
 		}
 	}
-	write2dpoints("c:\\tmp\\result.txt", p[:no_p])
+	return p[:no_p+1]
+}
+
+func main() {
+	
+	// populating the struct
+	//cs := load_struct_from_file("c:\\Go\\data\\cs_deck.txt")
+	x := read_matrix_row("c:\\Go\\data\\_deck_x", 1)
+	z := read_matrix_row("c:\\Go\\data\\_deck_z", 1)
+	cs := load_struct(x, z)
+	
+	fmt.Println(len(x))
+	fmt.Println(len(z))
+	//print_struct(cs)
+	
+	p := even_spaced_cs(cs, 1.0)
+	write2dpoints("c:\\Go\\data\\cs_row.txt", cs.points)
+	write2dpoints("c:\\Go\\data\\result.txt", p)
 }

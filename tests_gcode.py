@@ -38,7 +38,7 @@ def calc_next(p_left, _r2, _k, _m):
 # --- MAIN SCRIPT --- #
 # --- indata --- #
 cs = np.loadtxt('c:\\tmp\\cs_deck.txt', delimiter=' ')
-space = 1.0
+space = 2.0
 r2, k, m = [], [], []
 for i in range(0,len(cs),2):
 	# calculating the s square length of each line segment i cs
@@ -60,6 +60,7 @@ for i in range(30):
 	# to the end of the line that it belongs to (r2_left)
 	r2_left = line_sqr_length(p[-1], cs[2*line_index+1, :])
 	if space2 < r2_left:
+		print('i:', i,'first')
 		# ... then the next point should be in this line
 		# finds the point where the distance is space2 
 		# from the last point to the new point
@@ -69,7 +70,7 @@ for i in range(30):
 		while True:
 			# new space2 when looking at the next line...
 			# space2 == space2 - left_r2
-			space2 = space2 - r2_left
+			space2 = (np.sqrt(space2) - np.sqrt(r2_left))*(np.sqrt(space2) - np.sqrt(r2_left))
 			# move index to next line
 			line_index = line_index + 1
 			# move to next line distance. Note that r2_left is the whole
@@ -77,6 +78,8 @@ for i in range(30):
 			r2_left = r2[line_index]
 			# checks if the point should be in the next line
 			if space2 < r2_left:
+				print('i:', i,'next')
+				print('space2:', space2)
 				# ... then the next point should be in this line
 				# finds the point where the distance is space2 
 				new_point = calc_next(cs[2*line_index, :], space2, k[line_index], m[line_index])
@@ -86,12 +89,17 @@ for i in range(30):
 # plotting
 plt.figure(figsize=(10,5))
 plt.plot(cs[:, 0], cs[:, 1], '-o', color='C0')
-pp = np.array(p)
-plt.plot(pp[:, 0], pp[:, 1], 'o', color='C1')
+p = np.array(p)
+plt.plot(p[:, 0], p[:, 1], 'o', color='C1')
+plt.plot(p[:, 0], p[:, 1], 'o', color='C1')
 plt.grid()
 plt.axis('equal')
 plt.show()
 
+# checking the distance between points
+d = np.diff(p, axis=0)
+distance = np.sqrt( d[:,0]**2 + d[:, 1]**2 )
+
 # save to file
-np.savetxt('c:\\tmp\\result_python.txt', p, fmt='%.2f')
+# np.savetxt('c:\\Go\\data\\result_python.txt', p, fmt='%.2f')
 
