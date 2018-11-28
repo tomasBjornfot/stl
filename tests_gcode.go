@@ -55,7 +55,11 @@ func write2dpoints(path string, points [][2]float64) {
 	}
 	
 	bytes := []byte(data_string)
-	ioutil.WriteFile(path, bytes, 0666)
+	err := ioutil.WriteFile(path, bytes, 0666)
+	if err != nil {
+		fmt.Println("Something whent wrong:")
+		fmt.Println(err)
+	}
 }
 
 func load_struct_from_file(path string) *Points2d {
@@ -86,7 +90,26 @@ func print_struct(points *Points2d) {
 		fmt.Print("\n")
 	}
 }
-
+// --- cleaning of cs data ---
+func unique(data [][2]float64) {
+	remove = make([]int, 1000)
+	no_index := 0
+	for i:=0; x<len(data)-1; i++ {
+		arr := data[i][0]
+		for j:=i+1; j<len(data); j++ {
+			dx = math.round(arr[0] - data[j,0], 2) 
+			if dx == 0 {
+				remove[no_index] = j
+				no_index++1
+			}
+		}
+	}
+	copy(data, u_data)
+	for i:=0; i<no_index; i++ {
+		u_data = append(u_data[:remove[i]], u_data[remove[i]+1:]...)
+	}			
+	return u_data
+}
 // --- 2D line calculations ---
 func line_square_length(p0 [2]float64, p1 [2]float64) float64 {
 	dx := p0[0] - p1[0]
@@ -96,7 +119,11 @@ func line_square_length(p0 [2]float64, p1 [2]float64) float64 {
 func line_k(p0 [2]float64, p1 [2]float64) float64 {
 	dx := p1[0] - p0[0]
 	dy := p1[1] - p0[1]
-	return dy/dx
+	k := dy/dx
+	if dx +dy < 0.1 {
+		return 0
+	}
+	return k
 }
 func line_m(p0 [2]float64, p1 [2]float64) float64 {
 	k := line_k(p0, p1)
@@ -161,7 +188,11 @@ func even_spaced_cs(cs *Points2d, space float64) [][2]float64 {
 		}
 		// checks if the next point should be on the "next" line
 		for {
-			space2 = (math.Sqrt(space2) - math.Sqrt(d2_left))*(math.Sqrt(space2) - math.Sqrt(d2_left))
+			if line_index + 1 == len(cs.d2) {
+				// should add a last point at x=0!!!!
+				break
+			}
+			space2 = (math.Sqrt(space2) - math.Sqrt(d2_left))*(math.Sqrt(space2) - math.Sqrt(d2_left)) 
 			line_index++
 			d2_left = cs.d2[line_index]
 			if space2 < d2_left {
@@ -178,13 +209,19 @@ func even_spaced_cs(cs *Points2d, space float64) [][2]float64 {
 func main() {
 	// reading a cross-section from a mesh
 	// x and z is csMesh.x[row] and csMesh.z[row]
-	x := read_matrix_row("c:\\Go\\data\\_deck_x", 1)
-	z := read_matrix_row("c:\\Go\\data\\_deck_z", 1)
-	// generates a Points2d struct 
-	cs := load_struct(x, z)
-	// generates an even spaced cross-section
-	p := even_spaced_cs(cs, 1.0)
-	
+	// _deck_x och _deck_z innehåller 165 rader  
+	for i:=0; i<165; i++ {
+		x := read_matrix_row("c:\\Go\\data\\_deck_x", i)
+		z := read_matrix_row("c:\\Go\\data\\_deck_z", i)
+		// generates a Points2d struct 
+		cs := load_struct(x, z)
+		// generates an even spaced cross-section
+		p := even_spaced_cs(cs, 1.0)
+		fmt.Println("i:", i)
+		write2dpoints("c:\\Go\\data\\cs_"+strconv.Itoa(i)+".txt", p)
+	}
+	/*
 	write2dpoints("c:\\Go\\data\\cs_row.txt", cs.points)
 	write2dpoints("c:\\Go\\data\\result.txt", p)
+	*/
 }
